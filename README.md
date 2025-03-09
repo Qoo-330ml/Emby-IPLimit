@@ -55,14 +55,21 @@ python main.py
 
 ## 示例配置文件
 ```yaml
-embyserver:
-  url: "http://your-embyserver:8096"
-  apikey: "your_api_key_here"
-ipcheck:
-  max_allowed_ips: 3
-  region_whitelist: 
-    - "北京"
-    - "上海"
+database:
+  name: emby_playback.db # 默认数据库，不改动
+emby:
+  server_url: # https://emby.example.com
+  api_key: # your_api_key_here
+  check_interval: 10
+notifications:
+  alert_threshold: 2 # 播放窗口数(需不同IP），达到这个值即禁用
+  enable_alerts: true
+security:
+  auto_disable: true
+  whitelist: # 白名单内的用户不会被禁用
+  - admin
+  - user1
+  - user2
 ```
 
 ## 功能介绍
