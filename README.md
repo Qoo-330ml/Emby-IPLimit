@@ -1,20 +1,11 @@
 以下README内容由Ai生成：
 ---
 
-```markdown
+
 # Emby IPLimit 项目
 
 ## 项目简介
 Emby IPLimit 是一个用于限制和监控 Emby 服务器用户 IP 地址的工具。它通过监控 Emby 的播放会话，确保用户的播放行为符合预设的安全策略。此项目提供实时监控、IP 地理位置查询、会话记录和异常告警等功能。
-
-## 项目结构
-```plaintext
-EmbyIPLimit/
-├── config.yaml      # 配置文件
-├── main.py          # 主程序入口
-├── database/        # 数据库存储目录
-└── logs/            # 日志文件目录
-```
 
 ## 使用方法
 
@@ -34,10 +25,7 @@ docker pull username/embylimit:latest
 - 您需要进入挂载的宿主机目录，编辑`config.yaml`文件，填写必要的配置信息（如 Emby 服务器的 URL 和 API 密钥）
 - 编辑完成后，重新启动容器即可开始使用：
 ```bash
-docker run -d \
-  --name embylimit \
-  -v /host/data:/app/data \
-  username/embylimit:latest
+docker run -d -t  -v /root/1/test:/app/data --name emby-iplimit pdzhou/emby-iplimit:latest
 ```
 
 ### 2. 本地运行
