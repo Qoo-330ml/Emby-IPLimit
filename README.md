@@ -25,7 +25,7 @@ docker pull username/embylimit:latest
 - 您需要进入挂载的宿主机目录，编辑`config.yaml`文件，填写必要的配置信息（如 Emby 服务器的 URL 和 API 密钥）
 - 编辑完成后，重新启动容器即可开始使用：
 ```bash
-docker run -d -t  -v /root/1/test:/app/data --name emby-iplimit pdzhou/emby-iplimit:latest
+docker run -d -t  -v /host/path:/app/data --name emby-iplimit pdzhou/emby-iplimit:latest
 ```
 
 ### 2. 本地运行
