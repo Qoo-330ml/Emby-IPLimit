@@ -14,7 +14,7 @@ Emby IPLimit 是一个用于限制和监控 Emby 服务器用户 IP 地址的工
 **拉取镜像**  
 从 Docker Hub 拉取最新版本的镜像：
 ```bash
-docker pull username/embylimit:latest
+docker pull pdzhou/emby-iplimit:latest
 ```
 
 **启动容器**  
