@@ -131,15 +131,15 @@ webhook:
 - `api_key`: Emby API 密钥
 - `check_interval`: 监控检查间隔（秒），默认 10 秒
 
-#### 通知配置 (notifications)
+#### 告警配置 (notifications)
 - `alert_threshold`: 告警阈值，达到不同 IP 数量时触发禁用
-- `enable_alerts`: 是否启用异常告警
+- `enable_alerts`: 是否启用异常告警，不启用的话仅记录而不会触发禁用
 
 #### 安全配置 (security)
 - `auto_disable`: 是否自动禁用异常用户
 - `whitelist`: 白名单用户名列表（不会被禁用）
 
-#### Webhook 配置 (webhook)
+#### Webhook 通知配置 (webhook)
 - `enabled`: 是否启用 Webhook 通知
 - `url`: Webhook 通知地址
 - `timeout`: 请求超时时间（秒）
