@@ -1,6 +1,8 @@
 import os
 import time
 import sqlite3
+import socket
+import re
 from datetime import datetime
 import requests
 
@@ -21,6 +23,60 @@ class EmbyMonitor:
         self.auto_disable = config['security']['auto_disable']
         self.alert_threshold = config['notifications']['alert_threshold']
         self.alerts_enabled = config['notifications']['enable_alerts']
+
+    def _extract_ip_address(self, remote_endpoint):
+        """智能提取IP地址，支持IPv4和IPv6"""
+        if not remote_endpoint:
+            return ""
+        
+        # 处理IPv6地址格式：[IPv6]:port 或 IPv6%interface:port
+        ipv6_pattern = r'^\[(.*?)\](?::(\d+))?$|^([^%]:*)(?:%[^:]*)?:(?:(\d+))?$'
+        match = re.match(ipv6_pattern, remote_endpoint)
+        
+        if match:
+            # 方括号格式（IPv6）
+            if match.group(1):  # [IPv6]:port格式
+                return match.group(1)
+            # 冒号格式（可能是IPv6）
+            ip_part = match.group(3)
+            if ip_part and self._is_ipv6(ip_part):
+                return ip_part
+            elif ip_part:
+                return ip_part
+        
+        # 如果上面没匹配到，尝试其他方法
+        # 对于IPv6格式2408:8207:28c:3c01:8c5e:7cff:fe2e:2c8e:8096
+        parts = remote_endpoint.split(':')
+        if len(parts) >= 8:  # IPv6至少有8个部分（16进制）
+            # 尝试前8个部分组成IPv6地址
+            potential_ipv6 = ':'.join(parts[:8])
+            if self._is_ipv6(potential_ipv6):
+                return potential_ipv6
+        
+        # 处理IPv4格式
+        ipv4_pattern = r'^(\d+\.\d+\.\d+\.\d+):(\d+)$'
+        match = re.match(ipv4_pattern, remote_endpoint)
+        if match:
+            return match.group(1)
+        
+        # 如果都匹配不到，返回原始值（可能是IPv6直接格式）
+        return remote_endpoint.split('%')[0]  # 移除接口标识
+    
+    def _is_ipv6(self, ip_str):
+        """检查是否为有效的IPv6地址"""
+        try:
+            socket.inet_pton(socket.AF_INET6, ip_str)
+            return True
+        except (socket.error, ValueError):
+            return False
+    
+    def _is_ipv4(self, ip_str):
+        """检查是否为有效的IPv4地址"""
+        try:
+            socket.inet_pton(socket.AF_INET, ip_str)
+            return True
+        except (socket.error, ValueError):
+            return False
 
     def process_sessions(self):
         """核心会话处理逻辑"""
@@ -48,7 +104,7 @@ class EmbyMonitor:
         try:
             user_id = session['UserId']
             user_info = self.emby.get_user_info(user_id)
-            ip_address = session.get('RemoteEndPoint', '').split(':')[0]
+            ip_address = self._extract_ip_address(session.get('RemoteEndPoint', ''))
             username = user_info.get('Name', '未知用户').strip()
 
             # 白名单检查
@@ -77,7 +133,10 @@ class EmbyMonitor:
 
             self.db.record_session_start(session_data)
             self.active_sessions[session['Id']] = session_data
-            print(f"[▶] {username} | 设备: {session_data['device']} | IP: {ip_address} | 位置: {location} | 内容: {session_data['media']}")
+            
+            # 显示IP地址类型信息
+            ip_type = "IPv6" if self._is_ipv6(ip_address) else "IPv4" if self._is_ipv4(ip_address) else "未知"
+            print(f"[▶] {username} | 设备: {session_data['device']} | IP: {ip_address} ({ip_type}) | 位置: {location} | 内容: {session_data['media']}")
             
             # 触发异常检测
             self._check_login_abnormality(user_id, ip_address)
@@ -105,6 +164,8 @@ class EmbyMonitor:
         """解析地理位置"""
         if not ip_address:
             return "未知位置"
+        
+        # 支持IPv4和IPv6地址的地理位置查询
         try:
             api_url = f"https://api.vore.top/api/IPdata?ip={ip_address}"
             response = requests.get(api_url)
@@ -156,11 +217,12 @@ class EmbyMonitor:
                 return
 
             location = self._get_location(trigger_ip)
+            ip_type = "IPv6" if self._is_ipv6(trigger_ip) else "IPv4" if self._is_ipv4(trigger_ip) else "未知"
             alert_msg = f"""
             🚨 安全告警 🚨
             时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             用户名: {username}
-            可疑IP: {trigger_ip} ({location})
+            可疑IP: {trigger_ip} ({ip_type}) ({location})
             并发会话数: {session_count}
             """
             print("=" * 60)
