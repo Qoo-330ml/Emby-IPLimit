@@ -32,6 +32,14 @@ DEFAULT_CONFIG = {
     'security': {
         'auto_disable': True,
         'whitelist': ["admin", "user1", "user2"]
+    },
+    'webhook': {
+        'enabled': False,
+        'url': '',
+        'timeout': 10,
+        'retry_attempts': 3,
+        'title': 'Emby用户封禁通知',
+        'content_template': '用户 {username} 在 {location} 使用 {ip_address} ({ip_type}) 登录，检测到 {session_count} 个并发会话，已自动封禁。'
     }
 }
 

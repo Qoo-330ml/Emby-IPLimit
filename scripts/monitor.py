@@ -5,6 +5,7 @@ import socket
 import re
 from datetime import datetime
 import requests
+from webhook_notifier import WebhookNotifier
 
 class EmbyMonitor:
     def __init__(self, db_manager, emby_client, security_client, config):
@@ -23,6 +24,21 @@ class EmbyMonitor:
         self.auto_disable = config['security']['auto_disable']
         self.alert_threshold = config['notifications']['alert_threshold']
         self.alerts_enabled = config['notifications']['enable_alerts']
+        
+        # 初始化Webhook通知器
+        self.webhook_notifier = None
+        webhook_config = config.get('webhook', {})
+        if webhook_config.get('enabled', False):
+            try:
+                from webhook_notifier import WebhookNotifier
+                self.webhook_notifier = WebhookNotifier(webhook_config)
+                print("🔔 Webhook通知已启用")
+            except Exception as e:
+                print(f"❌ Webhook通知初始化失败: {e}")
+                self.webhook_notifier = None
+        else:
+            self.webhook_notifier = None
+            print("🔕 Webhook通知未启用")
 
     def _extract_ip_address(self, remote_endpoint):
         """智能提取IP地址，支持IPv4和IPv6"""
@@ -218,6 +234,16 @@ class EmbyMonitor:
 
             location = self._get_location(trigger_ip)
             ip_type = "IPv6" if self._is_ipv6(trigger_ip) else "IPv4" if self._is_ipv4(trigger_ip) else "未知"
+            
+            # 记录会话信息以获取设备等详细信息
+            device = "未知设备"
+            client = "未知客户端"
+            for sess in self.active_sessions.values():
+                if sess['user_id'] == user_id and sess['ip'] == trigger_ip:
+                    device = sess.get('device', '未知设备')
+                    client = sess.get('client', '未知客户端')
+                    break
+            
             alert_msg = f"""
             🚨 安全告警 🚨
             时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
@@ -232,8 +258,45 @@ class EmbyMonitor:
             if self.auto_disable:
                 if self.security.disable_user(user_id, username):
                     self._log_security_action(user_id, trigger_ip, session_count, username)
+                    
+                    # 发送Webhook通知
+                    self._send_webhook_notification({
+                        'username': username,
+                        'user_id': user_id,
+                        'ip_address': trigger_ip,
+                        'ip_type': ip_type,
+                        'location': location,
+                        'session_count': session_count,
+                        'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+                        'reason': f'检测到{session_count}个并发会话',
+                        'device': device,
+                        'client': client
+                    })
         except Exception as e:
             print(f"❌ 告警处理失败: {str(e)}")
+
+    def _send_webhook_notification(self, user_info: dict):
+        """发送Webhook通知"""
+        if not self.webhook_notifier:
+            return
+        
+        try:
+            success = self.webhook_notifier.send_ban_notification(user_info)
+            if success:
+                print(f"🔔 Webhook通知已发送: {user_info['username']}")
+            else:
+                print(f"⚠️ Webhook通知发送失败: {user_info['username']}")
+        except Exception as e:
+            print(f"❌ Webhook通知异常: {str(e)}")
+
+    def test_webhook(self):
+        """测试Webhook配置"""
+        if not self.webhook_notifier:
+            print("⚠️ Webhook未启用，无法测试")
+            return False
+        
+        print("🧪 测试Webhook配置...")
+        return self.webhook_notifier.test_webhook()
 
     def _log_security_action(self, user_id, ip, count, username):
         """记录安全日志"""
